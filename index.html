@@ -5293,18 +5293,17 @@ var $elm$core$Platform$Sub$none = $elm$core$Platform$Sub$batch(_List_Nil);
 var $author$project$Main$noSubscriptions = function (model) {
 	return $elm$core$Platform$Sub$none;
 };
-var $author$project$Main$FetchPerson = {$: 'FetchPerson'};
-var $elm$html$Html$br = _VirtualDom_node('br');
+var $author$project$Main$FetchPeople = {$: 'FetchPeople'};
+var $elm$core$List$append = F2(
+	function (xs, ys) {
+		if (!ys.b) {
+			return xs;
+		} else {
+			return A3($elm$core$List$foldr, $elm$core$List$cons, ys, xs);
+		}
+	});
 var $elm$html$Html$button = _VirtualDom_node('button');
 var $elm$html$Html$div = _VirtualDom_node('div');
-var $author$project$Main$getName = function (mp) {
-	if (mp.$ === 'Just') {
-		var person = mp.a;
-		return person.name + (' age: ' + $elm$core$String$fromInt(person.age));
-	} else {
-		return 'Øhh';
-	}
-};
 var $elm$html$Html$hr = _VirtualDom_node('hr');
 var $elm$virtual_dom$VirtualDom$Normal = function (a) {
 	return {$: 'Normal', a: a};
@@ -5325,42 +5324,54 @@ var $elm$html$Html$Events$onClick = function (msg) {
 };
 var $elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
 var $elm$html$Html$text = $elm$virtual_dom$VirtualDom$text;
-var $author$project$Main$showIt = function (model) {
+var $author$project$Main$showPerson = function (person) {
 	return A2(
 		$elm$html$Html$div,
 		_List_Nil,
 		_List_fromArray(
 			[
+				$elm$html$Html$text(person.name),
 				$elm$html$Html$text(
-				'#2 Person is ' + $author$project$Main$getName(model.person)),
-				A2($elm$html$Html$br, _List_Nil, _List_Nil),
-				$elm$html$Html$text(model.msg),
-				A2($elm$html$Html$hr, _List_Nil, _List_Nil),
-				A2(
-				$elm$html$Html$button,
-				_List_fromArray(
-					[
-						$elm$html$Html$Events$onClick($author$project$Main$FetchPerson)
-					]),
-				_List_fromArray(
-					[
-						$elm$html$Html$text('Click this')
-					]))
+				$elm$core$String$fromInt(person.age))
 			]));
 };
-var $author$project$Main$Model = F2(
-	function (person, msg) {
-		return {msg: msg, person: person};
+var $author$project$Main$showIt = function (model) {
+	return A2(
+		$elm$html$Html$div,
+		_List_Nil,
+		A2(
+			$elm$core$List$append,
+			_List_fromArray(
+				[
+					$elm$html$Html$text(model.msg),
+					A2($elm$html$Html$hr, _List_Nil, _List_Nil),
+					A2(
+					$elm$html$Html$button,
+					_List_fromArray(
+						[
+							$elm$html$Html$Events$onClick($author$project$Main$FetchPeople)
+						]),
+					_List_fromArray(
+						[
+							$elm$html$Html$text('Click this')
+						])),
+					A2($elm$html$Html$hr, _List_Nil, _List_Nil)
+				]),
+			A2($elm$core$List$map, $author$project$Main$showPerson, model.people)));
+};
+var $author$project$Main$ListModel = F2(
+	function (people, msg) {
+		return {msg: msg, people: people};
 	});
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
 var $author$project$Main$startIt = function (_v0) {
 	return _Utils_Tuple2(
-		A2($author$project$Main$Model, $elm$core$Maybe$Nothing, 'OK'),
+		A2($author$project$Main$ListModel, _List_Nil, 'OK'),
 		$elm$core$Platform$Cmd$none);
 };
-var $author$project$Main$GotPerson = function (a) {
-	return {$: 'GotPerson', a: a};
+var $author$project$Main$GotPeople = function (a) {
+	return {$: 'GotPeople', a: a};
 };
 var $elm$json$Json$Decode$decodeString = _Json_runOnString;
 var $elm$http$Http$BadStatus_ = F2(
@@ -6149,6 +6160,7 @@ var $elm$http$Http$get = function (r) {
 	return $elm$http$Http$request(
 		{body: $elm$http$Http$emptyBody, expect: r.expect, headers: _List_Nil, method: 'GET', timeout: $elm$core$Maybe$Nothing, tracker: $elm$core$Maybe$Nothing, url: r.url});
 };
+var $elm$json$Json$Decode$list = _Json_decodeList;
 var $author$project$Main$Person = F2(
 	function (name, age) {
 		return {age: age, name: name};
@@ -6161,10 +6173,11 @@ var $author$project$Main$personDecoder = A3(
 	$author$project$Main$Person,
 	A2($elm$json$Json$Decode$field, 'name', $elm$json$Json$Decode$string),
 	A2($elm$json$Json$Decode$field, 'age', $elm$json$Json$Decode$int));
-var $author$project$Main$fetchPerson = $elm$http$Http$get(
+var $author$project$Main$personListDecoder = $elm$json$Json$Decode$list($author$project$Main$personDecoder);
+var $author$project$Main$fetchPeople = $elm$http$Http$get(
 	{
-		expect: A2($elm$http$Http$expectJson, $author$project$Main$GotPerson, $author$project$Main$personDecoder),
-		url: 'person.json'
+		expect: A2($elm$http$Http$expectJson, $author$project$Main$GotPeople, $author$project$Main$personListDecoder),
+		url: 'people.json'
 	});
 var $author$project$Main$printError = function (error) {
 	switch (error.$) {
@@ -6185,28 +6198,29 @@ var $author$project$Main$printError = function (error) {
 };
 var $author$project$Main$updateIt = F2(
 	function (message, model) {
-		if (message.$ === 'FetchPerson') {
-			return _Utils_Tuple2(model, $author$project$Main$fetchPerson);
-		} else {
-			if (message.a.$ === 'Ok') {
-				var p = message.a.a;
-				return _Utils_Tuple2(
-					_Utils_update(
-						model,
-						{
-							person: $elm$core$Maybe$Just(p)
-						}),
-					$elm$core$Platform$Cmd$none);
-			} else {
-				var err = message.a.a;
-				return _Utils_Tuple2(
-					_Utils_update(
-						model,
-						{
-							msg: $author$project$Main$printError(err)
-						}),
-					$elm$core$Platform$Cmd$none);
-			}
+		switch (message.$) {
+			case 'FetchPeople':
+				return _Utils_Tuple2(model, $author$project$Main$fetchPeople);
+			case 'GotPeople':
+				if (message.a.$ === 'Ok') {
+					var p = message.a.a;
+					return _Utils_Tuple2(
+						_Utils_update(
+							model,
+							{people: p}),
+						$elm$core$Platform$Cmd$none);
+				} else {
+					var err = message.a.a;
+					return _Utils_Tuple2(
+						_Utils_update(
+							model,
+							{
+								msg: $author$project$Main$printError(err)
+							}),
+						$elm$core$Platform$Cmd$none);
+				}
+			default:
+				return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 		}
 	});
 var $author$project$Main$main = $elm$browser$Browser$element(

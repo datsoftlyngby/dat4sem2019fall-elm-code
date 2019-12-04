@@ -5,7 +5,8 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Http
-import Json.Decode exposing (Decoder, field, string, int, list, map2)
+import Json.Decode as JD exposing (Decoder, field, string, int, map2)
+import Json.Encode as JE
 
 main = Browser.element
   { init = startIt
@@ -19,27 +20,49 @@ type alias Person =
   , age: Int
   }
 
-type alias Model =
+type alias EditModel =
   { person: Maybe Person
   , msg: String
   }
 
+type alias ListModel =
+  { people: List Person
+  , msg: String
+  }
+
+type Model
+  = EditModel
+  | ListModel
+
 type Msg
-  = FetchPerson
+  = FetchPeople
+--  | FetchPerson
+  | GotPeople (Result Http.Error (List Person))
   | GotPerson (Result Http.Error Person)
 
 
 startIt: () -> (Model, Cmd Msg)
-startIt _ = (Model Nothing "OK", Cmd.none)
+startIt _ = (ListModel [] "OK", Cmd.none)
+-- startIt _ = ({ people = [], msg = "OK" }, Cmd.none)
 
 updateIt:  Msg -> Model -> (Model, Cmd Msg)
 updateIt message model =
-  case message of
-    FetchPerson -> (model, fetchPerson)
+  case model of
+    EditModel ->
+      case message of
+        FetchPeople -> (model, fetchPerson)
 
-    GotPerson (Ok p) -> ({ model | person = Just p }, Cmd.none)
+        GotPeople _ -> (model, Cmd.none)
 
-    GotPerson (Err err) -> ({ model | msg = (printError err) }, Cmd.none)
+        GotPerson _ -> (model, Cmd.none)
+    ListModel ->
+      case message of
+        FetchPeople -> (model, fetchPeople)
+
+        GotPeople (Ok p) -> ({ model | people = p }, Cmd.none)
+        GotPeople (Err err) -> ({ model | msg = (printError err) }, Cmd.none)
+
+        GotPerson _ -> (model, Cmd.none)
 
 printError: Http.Error -> String
 printError error =
@@ -59,24 +82,67 @@ fetchPerson =
     , expect = Http.expectJson GotPerson personDecoder
     }
 
+fetchPeople: Cmd Msg
+fetchPeople =
+  Http.request
+    { method = "GET"
+    , headers = []
+    , url = "people.json"
+    , body = Http.emptyBody
+    , expect = Http.expectJson GotPeople personListDecoder
+    , timeout = Nothing
+    , tracker = Nothing
+    }
+
+putPerson: Person -> Cmd Msg
+putPerson person =
+  Http.request
+    { method = "PUT"
+    , headers = []
+    , url = "..."
+    , body = Http.jsonBody (personEncoder person)
+    , expect = Http.expectWhatever PersonPutted
+    , timeout = Nothing
+    , tracker = Nothing
+    }
+
 personDecoder: Decoder Person
 personDecoder =
   map2 Person
     (field "name" string)
     (field "age" int)
 
-noSubscriptions: Model -> Sub Msg
+personListDecoder: Decoder (List Person)
+personListDecoder =
+  JD.list personDecoder
+
+personEncoder: Person -> JE.Value
+personEncoder person =
+  JE.object
+    [ ("name", JE.string person.name)
+    , ("age", JE.int person.age)
+    ]
+
+noSubscriptions: ListModel -> Sub Msg
 noSubscriptions model =
   Sub.none
 
-showIt: Model -> Html Msg
+showIt: ListModel -> Html Msg
 showIt model =
-  div []
-    [ text ("#2 Person is "++(getName model.person))
-    , br [] []
-    , text model.msg
+  div [] ( List.append
+    [ text model.msg
     , hr [] []
-    , button [onClick FetchPerson] [text "Click this"]
+    , button [onClick FetchPeople] [text "Click this"]
+    , hr [] []
+    ]
+    (List.map showPerson model.people)
+    )
+
+showPerson: Person -> Html Msg
+showPerson person =
+  div []
+    [ text person.name
+    , text (String.fromInt person.age)
     ]
 
 getName: Maybe Person -> String
