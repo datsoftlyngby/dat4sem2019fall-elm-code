@@ -5,95 +5,65 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Http
-import Json.Decode as JD exposing (Decoder, field, string, int, map2)
-import Json.Encode as JE
+
+import Page.Editor as Editor
+import Page.Listing as Listing
 
 main = Browser.element
-  { init = startIt
-  , update = updateIt
+  { init = init
+  , update = update
   , subscriptions = noSubscriptions
-  , view = showIt
-  }
-
-type alias Person =
-  { name: String
-  , age: Int
-  }
-
-type alias EditModel =
-  { person: Maybe Person
-  , msg: String
-  }
-
-type alias ListModel =
-  { people: List Person
-  , msg: String
+  , view = view
   }
 
 type Model
-  = EditModel
-  | ListModel
+  = Editor Editor.Model
+  | Listing Listing.Model
 
 type Msg
-  = FetchPeople
---  | FetchPerson
-  | GotPeople (Result Http.Error (List Person))
-  | GotPerson (Result Http.Error Person)
+  = EditorMsg Editor.Msg
+  | ListingMsg Listing.Msg
 
 
-startIt: () -> (Model, Cmd Msg)
-startIt _ = (ListModel [] "OK", Cmd.none)
--- startIt _ = ({ people = [], msg = "OK" }, Cmd.none)
+init : () -> (Model, Cmd Msg)
+init _ = (Editor Editor.init, Cmd.none)
 
-updateIt:  Msg -> Model -> (Model, Cmd Msg)
-updateIt message model =
+view : Model -> Html Msg
+view model =
   case model of
-    EditModel ->
-      case message of
-        FetchPeople -> (model, fetchPerson)
+    Editor mdl -> viewWith EditorMsg (Editor.view mdl)
+    Listing mdl -> Listing.view mdl |> viewWith ListingMsg
 
-        GotPeople _ -> (model, Cmd.none)
+viewWith : (msg -> Msg) -> (Html msg) -> (Html Msg)
+viewWith messenger (msg) = Html.map messenger msg
 
-        GotPerson _ -> (model, Cmd.none)
-    ListModel ->
-      case message of
-        FetchPeople -> (model, fetchPeople)
+update : Msg -> Model -> (Model, Cmd Msg)
+update message model =
+  case (message, model) of
+    (EditorMsg Editor.FetchPeople, _) ->
+      Listing.update Listing.FetchPeople Listing.init
+        |> updateWith Listing ListingMsg
 
-        GotPeople (Ok p) -> ({ model | people = p }, Cmd.none)
-        GotPeople (Err err) -> ({ model | msg = (printError err) }, Cmd.none)
+    (ListingMsg Listing.FetchPerson, _) ->
+      Editor.update Editor.FetchPerson Editor.init
+        |> updateWith Editor EditorMsg
 
-        GotPerson _ -> (model, Cmd.none)
+    (EditorMsg msg, Editor mdl) ->
+      Editor.update msg mdl |> updateWith Editor EditorMsg
 
-printError: Http.Error -> String
-printError error =
-  case error of
-    Http.BadBody m -> "Bad body "++m
-    Http.BadUrl u -> "Bad URL: "++u
-    Http.Timeout -> "Timeout"
-    Http.NetworkError -> "Network panic"
-    Http.BadStatus i -> "Bad Status: "++(String.fromInt i)
+    (ListingMsg msg, Listing mdl) ->
+      Listing.update msg mdl |> updateWith Listing ListingMsg
+
+    (_, _) -> (model, Cmd.none)
+
+updateWith : (mdl -> Model) -> (msg -> Msg) -> (mdl, Cmd msg) -> (Model, Cmd Msg)
+updateWith modeller messenger (mdl, cmd) =
+  (modeller mdl, Cmd.map messenger cmd)
 
 
 
-fetchPerson: Cmd Msg
-fetchPerson =
-  Http.get
-    { url = "person.json"
-    , expect = Http.expectJson GotPerson personDecoder
-    }
 
-fetchPeople: Cmd Msg
-fetchPeople =
-  Http.request
-    { method = "GET"
-    , headers = []
-    , url = "people.json"
-    , body = Http.emptyBody
-    , expect = Http.expectJson GotPeople personListDecoder
-    , timeout = Nothing
-    , tracker = Nothing
-    }
-
+{--
 putPerson: Person -> Cmd Msg
 putPerson person =
   Http.request
@@ -105,48 +75,8 @@ putPerson person =
     , timeout = Nothing
     , tracker = Nothing
     }
+--}
 
-personDecoder: Decoder Person
-personDecoder =
-  map2 Person
-    (field "name" string)
-    (field "age" int)
 
-personListDecoder: Decoder (List Person)
-personListDecoder =
-  JD.list personDecoder
-
-personEncoder: Person -> JE.Value
-personEncoder person =
-  JE.object
-    [ ("name", JE.string person.name)
-    , ("age", JE.int person.age)
-    ]
-
-noSubscriptions: ListModel -> Sub Msg
-noSubscriptions model =
-  Sub.none
-
-showIt: ListModel -> Html Msg
-showIt model =
-  div [] ( List.append
-    [ text model.msg
-    , hr [] []
-    , button [onClick FetchPeople] [text "Click this"]
-    , hr [] []
-    ]
-    (List.map showPerson model.people)
-    )
-
-showPerson: Person -> Html Msg
-showPerson person =
-  div []
-    [ text person.name
-    , text (String.fromInt person.age)
-    ]
-
-getName: Maybe Person -> String
-getName mp =
-  case mp of
-    Just person -> person.name++" age: "++(String.fromInt person.age)
-    Nothing ->     "Øhh"
+noSubscriptions: Model -> Sub Msg
+noSubscriptions _ = Sub.none

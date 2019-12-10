@@ -1,17 +1,21 @@
 [
   {
+    "id": 7,
     "name": "Kurt",
     "age": 27
   },
   {
+    "id": 17,
     "name": "Sonja",
     "age": 28
   },
   {
+    "id": 9,
     "name": "Ib",
     "age": 28
   },
   {
+    "id": 13,
     "name": "Bo",
     "age": 28
   }
